@@ -77,7 +77,7 @@ p_pill.font.color.rgb = COLOR_EMERALD
 p_pill.alignment = PP_ALIGN.CENTER
 
 # Main Title
-title_box = slide1.shapes.add_textbox(Inches(0.8), Inches(1.3), Inches(6.5), Inches(1.2))
+title_box = slide1.shapes.add_textbox(Inches(0.8), Inches(1.3), Inches(5.8), Inches(1.3))
 tf = title_box.text_frame
 tf.word_wrap = True
 p1 = tf.paragraphs[0]
@@ -87,16 +87,16 @@ p1.font.bold = True
 p1.font.color.rgb = COLOR_TEXT_WHITE
 p1.font.name = "Arial"
 
-# Tagline
+# Tagline (explicit clean line break)
 p2 = tf.add_paragraph()
-p2.text = "Fair, Server-Timed Quizzes with Dynamic AI Blueprints & Anti-Cheat Engine"
-p2.font.size = Pt(14)
+p2.text = "Fair, Server-Timed Quizzes with Dynamic AI Blueprints\n& Anti-Cheat Engine"
+p2.font.size = Pt(13)
 p2.font.bold = True
 p2.font.color.rgb = COLOR_EMERALD
 p2.font.name = "Arial"
 
 # Description Paragraph
-desc_box = slide1.shapes.add_textbox(Inches(0.8), Inches(2.7), Inches(5.8), Inches(1.5))
+desc_box = slide1.shapes.add_textbox(Inches(0.8), Inches(2.8), Inches(5.8), Inches(1.5))
 tf_desc = desc_box.text_frame
 tf_desc.word_wrap = True
 p_desc = tf_desc.paragraphs[0]
@@ -133,10 +133,19 @@ pp3.text = "Role: Full-Stack Engineer & System Architect  •  Academic Year: 20
 pp3.font.size = Pt(10)
 pp3.font.color.rgb = COLOR_TEXT_MUTED
 
-# Right Side Image: Live Quiz Simulator Mockup
-quiz_img_path = "presentation/assets/quiz_mockup_card.png"
+# Right Side Image: Premium 3D Glassmorphic UI Mockup
+quiz_img_path = "presentation/assets/quizlab_ui_mockup.jpg"
+if not os.path.exists(quiz_img_path):
+    quiz_img_path = "presentation/assets/quiz_mockup_card.png"
+
 if os.path.exists(quiz_img_path):
-    slide1.shapes.add_picture(quiz_img_path, Inches(6.9), Inches(1.5), width=Inches(5.7))
+    # Add stylish rounded card container with glowing border behind the image
+    img_card = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.8), Inches(1.2), Inches(5.8), Inches(4.8))
+    img_card.fill.solid()
+    img_card.fill.fore_color.rgb = COLOR_SURFACE
+    img_card.line.color.rgb = COLOR_EMERALD
+    img_card.line.width = Pt(1.5)
+    slide1.shapes.add_picture(quiz_img_path, Inches(6.9), Inches(1.3), width=Inches(5.6))
 
 # Bottom Metric Pill Strip
 metrics = [
@@ -459,6 +468,15 @@ tp3.alignment = PP_ALIGN.CENTER
 
 
 # Save presentation
-output_pptx = "Project_Presentation.pptx"
+output_pptx = "Project_Presentation_Updated.pptx"
 prs.save(output_pptx)
 print(f"Presentation saved successfully to: {output_pptx}")
+
+# Also attempt to update Project_Presentation.pptx if not locked by PowerPoint
+try:
+    import shutil
+    shutil.copyfile("Project_Presentation_Updated.pptx", "Project_Presentation.pptx")
+    print("Project_Presentation.pptx also updated successfully.")
+except Exception as e:
+    print(f"Notice: Project_Presentation.pptx is currently open in PowerPoint ({e}). Saved as Project_Presentation_Updated.pptx!")
+

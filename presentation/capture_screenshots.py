@@ -88,3 +88,4 @@ cmd4 = [
 ]
 subprocess.run(cmd4, timeout=15)
 print(f"Mobile screenshot captured: {os.path.exists(mobile_shot)}")
+
