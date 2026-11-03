@@ -62,6 +62,8 @@ export const Signup: React.FC = () => {
         email,
         password,
         full_name: fullName,
+        role,
+        teacher_code: role === 'teacher' ? teacherCode.trim() : undefined,
       });
 
       navigate('/login', {

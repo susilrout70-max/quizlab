@@ -17,20 +17,25 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Routes
+// Routes - mounted on both /api/* and root paths to handle any Vercel rewrite configuration
 app.use('/api/auth', authRoutes);
-app.use('/api/quiz', quizRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/auth', authRoutes);
 
-// Health check endpoint
-app.get('/api/health', async (_req, res) => {
+app.use('/api/quiz', quizRoutes);
+app.use('/quiz', quizRoutes);
+
+app.use('/api/ai', aiRoutes);
+app.use('/ai', aiRoutes);
+
+// Health check endpoint (both /api/health and /health)
+const healthHandler = async (_req: express.Request, res: express.Response) => {
   try {
     const dbRes = await query('SELECT NOW() as current_time');
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       database: 'connected',
-      db_time: dbRes.rows[0].current_time,
+      db_time: dbRes.rows[0]?.current_time || new Date().toISOString(),
     });
   } catch (error: any) {
     res.status(500).json({
@@ -40,7 +45,10 @@ app.get('/api/health', async (_req, res) => {
       },
     });
   }
-});
+};
+
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // 404 handler for unrecognized /api routes
 app.use('/api/*', (_req, res) => {
@@ -63,8 +71,9 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// In Vercel serverless environment or test runner, do not start long-running TCP listener
-if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+// Only start TCP listener when executed directly as the main script (never when imported by Vercel or test runners)
+const isDirectExecution = typeof require !== 'undefined' && require.main === module;
+if (isDirectExecution && process.env.VERCEL !== '1' && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);

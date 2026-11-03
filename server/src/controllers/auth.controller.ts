@@ -18,6 +18,8 @@ const signupSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   full_name: z.string().trim().min(2, 'Full name must be at least 2 characters'),
+  role: z.enum(['student', 'teacher']).optional().default('student'),
+  teacher_code: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -37,8 +39,30 @@ export async function signup(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { email, password, full_name } = parseResult.data;
-  const role = 'student';
+  const { email, password, full_name, role, teacher_code } = parseResult.data;
+
+  // Validate teacher institutional code
+  if (role === 'teacher') {
+    let expectedCode = 'QUIZLAB_TEACHER_2026';
+    try {
+      const configRes = await query("SELECT value FROM app_config WHERE key = 'TEACHER_INVITE_CODE'");
+      if (configRes.rows.length > 0 && configRes.rows[0].value) {
+        expectedCode = configRes.rows[0].value.trim();
+      }
+    } catch {
+      // Use fallback expectedCode if query fails
+    }
+
+    if (!teacher_code || teacher_code.trim() !== expectedCode) {
+      res.status(400).json({
+        error: {
+          code: 'INVALID_INVITE_CODE',
+          message: 'Invalid teacher invite code. Please enter the valid institutional code: QUIZLAB_TEACHER_2026',
+        },
+      });
+      return;
+    }
+  }
 
   try {
     // 1. Try DB check or fallback
@@ -63,7 +87,11 @@ export async function signup(req: Request, res: Response): Promise<void> {
       );
 
       const user = insertRes.rows[0];
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, full_name: user.full_name },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.status(201).json({
         message: 'Account created successfully',
@@ -93,7 +121,11 @@ export async function signup(req: Request, res: Response): Promise<void> {
       };
 
       mockUsers.set(email.toLowerCase(), user);
-      const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role, full_name: user.full_name },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.status(201).json({
         message: 'Account created successfully',
@@ -160,7 +192,11 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     res.json({
       message: 'Login successful',
@@ -185,9 +221,18 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 export async function getMe(req: AuthenticatedRequest, res: Response): Promise<void> {
   if (!req.user) {
-    res.status(401).json({ error: 'Not authenticated' });
+    res.status(401).json({
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Authentication required',
+      },
+    });
     return;
   }
 
   res.json({ user: req.user });
+}
+
+export async function logout(_req: Request, res: Response): Promise<void> {
+  res.json({ message: 'Logged out successfully' });
 }

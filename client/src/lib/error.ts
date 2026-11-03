@@ -97,3 +97,4 @@ export function getErrorMessage(error: unknown, fallback: string = 'An unexpecte
 
   return fallback;
 }
+

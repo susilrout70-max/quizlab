@@ -156,3 +156,4 @@ describe('Frontend Error Normalization Tests (getErrorMessage)', () => {
     assert.equal(getErrorMessage(null, 'Custom fallback'), 'Custom fallback');
   });
 });
+

@@ -6,6 +6,8 @@ interface SignupData {
   email: string;
   password: string;
   full_name: string;
+  role?: 'student' | 'teacher';
+  teacher_code?: string;
 }
 
 interface AuthContextType {
