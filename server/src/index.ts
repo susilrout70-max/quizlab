@@ -34,16 +34,43 @@ app.get('/api/health', async (_req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({
-      status: 'error',
-      message: 'Database connection failed',
-      error: error.message,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Database connection failed',
+      },
     });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 QuizLab Server running on port ${PORT}`);
-  console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
+// 404 handler for unrecognized /api routes
+app.use('/api/*', (_req, res) => {
+  res.status(404).json({
+    error: {
+      code: 'NOT_FOUND',
+      message: 'Requested API endpoint was not found',
+    },
+  });
 });
 
+// Global Express error handler: ensure JSON response and never leak stacks or secrets
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('💥 Unhandled Express Error:', err?.message || err);
+  res.status(err.status || 500).json({
+    error: {
+      code: err.code || 'INTERNAL_SERVER_ERROR',
+      message: err.message || 'An unexpected server error occurred',
+    },
+  });
+});
+
+// In Vercel serverless environment or test runner, do not start long-running TCP listener
+if (process.env.VERCEL !== '1' && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 QuizLab Server running on port ${PORT}`);
+    console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
+  });
+}
+
 export default app;
+module.exports = app;
+module.exports.default = app;

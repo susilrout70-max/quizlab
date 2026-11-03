@@ -7,24 +7,33 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quizlab_super_secret_jwt_key_2026';
 
+if (!process.env.JWT_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
+  console.warn('⚠️  JWT_SECRET environment variable is missing in production. Falling back to default secret.');
+}
+
 // In-memory store used if Neon DB connection is pending/placeholder
 export const mockUsers = new Map<string, any>();
 
 const signupSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  full_name: z.string().min(2, 'Full name must be at least 2 characters'),
+  full_name: z.string().trim().min(2, 'Full name must be at least 2 characters'),
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().trim().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
 
 export async function signup(req: Request, res: Response): Promise<void> {
   const parseResult = signupSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res.status(400).json({ error: parseResult.error.errors[0].message });
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: parseResult.error.errors[0]?.message || 'Invalid input data',
+      },
+    });
     return;
   }
 
@@ -36,7 +45,12 @@ export async function signup(req: Request, res: Response): Promise<void> {
     try {
       const existing = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
       if (existing.rows.length > 0) {
-        res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
+        res.status(409).json({
+          error: {
+            code: 'ACCOUNT_EXISTS',
+            message: 'An account with this email already exists. Please log in.',
+          },
+        });
         return;
       }
 
@@ -56,11 +70,16 @@ export async function signup(req: Request, res: Response): Promise<void> {
         token,
         user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
       });
-    } catch (dbErr) {
-      console.warn('ℹ️ Neon DB connection pending. Using local store for localhost testing.');
+    } catch (dbErr: any) {
+      console.warn('ℹ️ Neon DB query failed or pending. Using local store fallback:', dbErr?.message || dbErr);
 
       if (mockUsers.has(email.toLowerCase())) {
-        res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
+        res.status(409).json({
+          error: {
+            code: 'ACCOUNT_EXISTS',
+            message: 'An account with this email already exists. Please log in.',
+          },
+        });
         return;
       }
 
@@ -82,16 +101,26 @@ export async function signup(req: Request, res: Response): Promise<void> {
         user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
       });
     }
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error while creating account' });
+  } catch (error: any) {
+    console.error('Signup error:', error?.message || error);
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Internal server error while creating account',
+      },
+    });
   }
 }
 
 export async function login(req: Request, res: Response): Promise<void> {
   const parseResult = loginSchema.safeParse(req.body);
   if (!parseResult.success) {
-    res.status(400).json({ error: parseResult.error.errors[0].message });
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: parseResult.error.errors[0]?.message || 'Invalid email or password format',
+      },
+    });
     return;
   }
 
@@ -105,18 +134,29 @@ export async function login(req: Request, res: Response): Promise<void> {
         [email.toLowerCase()]
       );
       user = rows[0];
-    } catch {
+    } catch (dbErr: any) {
+      console.warn('ℹ️ Neon DB lookup failed, falling back to mockUsers:', dbErr?.message || dbErr);
       user = mockUsers.get(email.toLowerCase());
     }
 
-    if (!user) {
-      res.status(401).json({ error: 'Invalid email or password' });
+    if (!user || typeof user.password_hash !== 'string') {
+      res.status(401).json({
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password',
+        },
+      });
       return;
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
-      res.status(401).json({ error: 'Invalid email or password' });
+      res.status(401).json({
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email or password',
+        },
+      });
       return;
     }
 
@@ -132,9 +172,14 @@ export async function login(req: Request, res: Response): Promise<void> {
         role: user.role,
       },
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error while logging in' });
+  } catch (error: any) {
+    console.error('Login error:', error?.message || error);
+    res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Internal server error while logging in',
+      },
+    });
   }
 }
 
