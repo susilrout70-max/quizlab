@@ -140,12 +140,31 @@ if not os.path.exists(quiz_img_path):
 
 if os.path.exists(quiz_img_path):
     # Add stylish rounded card container with glowing border behind the image
-    img_card = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.8), Inches(1.2), Inches(5.8), Inches(4.8))
+    img_card = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.8), Inches(1.2), Inches(5.75), Inches(4.8))
     img_card.fill.solid()
     img_card.fill.fore_color.rgb = COLOR_SURFACE
     img_card.line.color.rgb = COLOR_EMERALD
     img_card.line.width = Pt(1.5)
-    slide1.shapes.add_picture(quiz_img_path, Inches(6.9), Inches(1.3), width=Inches(5.6))
+    slide1.shapes.add_picture(quiz_img_path, Inches(6.95), Inches(1.35), width=Inches(5.45))
+    
+    # Feature caption pill inside bottom of card
+    sub_card = slide1.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.95), Inches(4.7), Inches(5.45), Inches(1.15))
+    sub_card.fill.solid()
+    sub_card.fill.fore_color.rgb = COLOR_SURFACE_LIGHT
+    sub_card.line.color.rgb = COLOR_BORDER
+    sub_card.line.width = Pt(1)
+    stf = sub_card.text_frame
+    stf.word_wrap = True
+    sp1 = stf.paragraphs[0]
+    sp1.text = "LIVE EXAM RUNNER • TIMED BLUEPRINTS"
+    sp1.font.size = Pt(9.5)
+    sp1.font.bold = True
+    sp1.font.color.rgb = COLOR_EMERALD
+    sp2 = stf.add_paragraph()
+    sp2.text = "Server-synced countdown timer, instant answer selection, and automated submission lock on expiry."
+    sp2.font.size = Pt(8.5)
+    sp2.font.color.rgb = COLOR_TEXT_LIGHT
+    sp2.line_spacing = 1.2
 
 # Bottom Metric Pill Strip
 metrics = [
@@ -269,12 +288,41 @@ slide3 = prs.slides.add_slide(blank_layout)
 set_slide_background(slide3)
 add_header(slide3, "SYSTEM ARCHITECTURE", "Technology Stack & Decoupled Architecture")
 
-# Left Side Image: Architecture Flowchart
-arch_img_path = "presentation/assets/architecture_diagram.png"
-if os.path.exists(arch_img_path):
-    slide3.shapes.add_picture(arch_img_path, Inches(0.8), Inches(1.5), width=Inches(7.2))
+# Left Side Visual: 3D Isometric Architecture Diagram (with fallback to crisp block diagram)
+arch_img_path = "presentation/assets/quizlab_architecture_3d.jpg"
+if not os.path.exists(arch_img_path):
+    arch_img_path = "presentation/assets/architecture_diagram.png"
 
-# Right Side: Technology Highlights
+if os.path.exists(arch_img_path):
+    # Container card for the visual
+    arch_card = slide3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.35), Inches(7.2), Inches(5.15))
+    arch_card.fill.solid()
+    arch_card.fill.fore_color.rgb = COLOR_SURFACE
+    arch_card.line.color.rgb = COLOR_CYAN
+    arch_card.line.width = Pt(1.5)
+    
+    # Visual Image
+    slide3.shapes.add_picture(arch_img_path, Inches(0.92), Inches(1.48), width=Inches(6.96))
+    
+    # Architecture caption pill
+    arch_pill = slide3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.92), Inches(5.62), Inches(6.96), Inches(0.75))
+    arch_pill.fill.solid()
+    arch_pill.fill.fore_color.rgb = COLOR_SURFACE_LIGHT
+    arch_pill.line.color.rgb = COLOR_BORDER
+    arch_pill.line.width = Pt(1)
+    aptf = arch_pill.text_frame
+    aptf.word_wrap = True
+    ap1 = aptf.paragraphs[0]
+    ap1.text = "ISOMETRIC 4-TIER TOPOLOGY"
+    ap1.font.size = Pt(9.5)
+    ap1.font.bold = True
+    ap1.font.color.rgb = COLOR_CYAN
+    ap2 = aptf.add_paragraph()
+    ap2.text = "Zero-Trust Client (React/Vite) ➔ Enforced API (Express) ➔ ACID Persistence (Neon) ➔ Generative AI (Gemini 2.5)"
+    ap2.font.size = Pt(8.5)
+    ap2.font.color.rgb = COLOR_TEXT_LIGHT
+
+# Right Side: Technology Highlights (4 Cards)
 tech_groups = [
     ("Frontend Layer", "React 18  •  Vite  •  TypeScript  •  Tailwind CSS\nLucide Icons  •  Axios Reverse Proxy", COLOR_EMERALD),
     ("Backend Layer", "Node.js  •  Express  •  TypeScript (TSX watch)\nZod Validation  •  JWT Auth  •  Bcrypt", COLOR_CYAN),
@@ -283,7 +331,7 @@ tech_groups = [
 ]
 
 for i, (layer_title, layer_desc, accent_color) in enumerate(tech_groups):
-    box = slide3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.3), Inches(1.5 + i * 1.3), Inches(4.2), Inches(1.15))
+    box = slide3.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.3), Inches(1.35 + i * 1.3), Inches(4.2), Inches(1.15))
     box.fill.solid()
     box.fill.fore_color.rgb = COLOR_SURFACE
     box.line.color.rgb = accent_color
@@ -302,7 +350,7 @@ for i, (layer_title, layer_desc, accent_color) in enumerate(tech_groups):
     bp2.line_spacing = 1.2
 
 # Bottom architecture note
-arch_note = slide3.shapes.add_textbox(Inches(0.8), Inches(6.75), Inches(11.7), Inches(0.5))
+arch_note = slide3.shapes.add_textbox(Inches(0.8), Inches(6.7), Inches(11.7), Inches(0.5))
 an_tf = arch_note.text_frame
 an_p = an_tf.paragraphs[0]
 an_p.text = "Architecture Principle: Strict separation of concerns — Client handles UI state, Server strictly enforces timers and grading."
@@ -322,7 +370,7 @@ add_header(slide4, "ENGINEERING LIFECYCLE", "Development Workflow, Antigravity P
 # Top Workflow Image
 wf_img_path = "presentation/assets/workflow_diagram.png"
 if os.path.exists(wf_img_path):
-    slide4.shapes.add_picture(wf_img_path, Inches(0.8), Inches(1.4), width=Inches(11.7))
+    slide4.shapes.add_picture(wf_img_path, Inches(0.8), Inches(1.35), width=Inches(11.7))
 
 # Bottom: Recovered / Reconstructed Prompts & AI Orchestration
 prompts = [
@@ -467,16 +515,27 @@ tp3.font.color.rgb = COLOR_TEXT_LIGHT
 tp3.alignment = PP_ALIGN.CENTER
 
 
-# Save presentation
-output_pptx = "Project_Presentation_Updated.pptx"
-prs.save(output_pptx)
-print(f"Presentation saved successfully to: {output_pptx}")
+# Robust Multi-Target Save Logic (handles Windows PowerPoint open file locks)
+targets = [
+    "Project_Presentation_Final.pptx",
+    "Project_Presentation.pptx",
+    "Project_Presentation_Updated.pptx",
+    "presentation/QuizLab_5Slide_Defense.pptx"
+]
 
-# Also attempt to update Project_Presentation.pptx if not locked by PowerPoint
-try:
-    import shutil
-    shutil.copyfile("Project_Presentation_Updated.pptx", "Project_Presentation.pptx")
-    print("Project_Presentation.pptx also updated successfully.")
-except Exception as e:
-    print(f"Notice: Project_Presentation.pptx is currently open in PowerPoint ({e}). Saved as Project_Presentation_Updated.pptx!")
+saved_targets = []
+for target in targets:
+    try:
+        prs.save(target)
+        saved_targets.append(target)
+        print(f"[OK] Successfully saved: {target}")
+    except Exception as e:
+        print(f"Notice: Could not write {target} (likely open in PowerPoint): {e}")
+
+if saved_targets:
+    print(f"\nDeck successfully generated! Ready in: {', '.join(saved_targets)}")
+else:
+    fallback = f"Project_Presentation_{os.getpid()}.pptx"
+    prs.save(fallback)
+    print(f"Saved to fallback: {fallback}")
 

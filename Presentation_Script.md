@@ -132,3 +132,4 @@ A slide-by-slide presentation script written in simple, clear English for a coll
 ### Q5: "What are the limitations of the current implementation?"
 **Answer:**
 > "Currently, Phase 1 through Phase 4 are complete: authentication, server-timed quiz taking, AI study tutoring, and responsive UI. In Phase 5, we plan to add a visual blueprint builder allowing teachers to manually upload custom question banks alongside AI generation, as well as live proctoring webcam feeds."
+

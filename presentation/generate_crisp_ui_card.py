@@ -93,3 +93,4 @@ draw.text((W - 650, footer_y), "Adaptive AI Blueprint • 10 Fresh Questions", f
 out_path = "presentation/assets/quiz_mockup_card.png"
 img.save(out_path, "PNG")
 print(f"Crisp high-resolution UI card saved: {out_path} ({W}x{H})")
+
