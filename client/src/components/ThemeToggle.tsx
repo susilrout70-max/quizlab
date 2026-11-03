@@ -60,3 +60,4 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ variant = 'icon', clas
     </button>
   );
 };
+
