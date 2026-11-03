@@ -1,4 +1,5 @@
 import axios from 'axios';
+export { getErrorMessage } from './error.js';
 
 export const api = axios.create({
   baseURL: '/api',

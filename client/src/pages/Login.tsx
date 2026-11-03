@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { getErrorMessage } from '../lib/error.js';
 import {
   ShieldCheck,
   ArrowRight,
@@ -50,8 +51,8 @@ export const Login: React.FC = () => {
 
       await login(email, password);
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid email or password. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Invalid email or password. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import { ThemeToggle } from '../components/ThemeToggle.js';
+import { getErrorMessage } from '../lib/error.js';
 import {
   ShieldCheck,
   ArrowRight,
@@ -69,8 +70,8 @@ export const Signup: React.FC = () => {
           message: res?.message || 'Registration successful! Please sign in with your credentials.',
         },
       });
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Registration failed. Please check your information and try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Registration failed. Please check your information and try again.'));
       setIsSubmitting(false);
     }
   };
