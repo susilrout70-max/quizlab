@@ -49,6 +49,9 @@ const healthHandler = async (_req: express.Request, res: express.Response) => {
 
 app.get('/api/health', healthHandler);
 app.get('/health', healthHandler);
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'quizlab-api' });
+});
 
 // 404 handler for unrecognized /api routes
 app.use('/api/*', (_req, res) => {
@@ -71,8 +74,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Only start TCP listener when running locally (never in Vercel serverless or test environments)
-if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+// Start TCP listener (except in test runner). Vercel safely wraps this in serverless mode or uses it in services mode.
+if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
