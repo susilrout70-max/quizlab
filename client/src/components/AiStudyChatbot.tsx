@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.js';
 import {
@@ -28,6 +29,7 @@ const FREQUENT_QUESTIONS = [
 
 export const AiStudyChatbot: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -50,6 +52,12 @@ export const AiStudyChatbot: React.FC = () => {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/quiz/')) {
+      setIsOpen(false);
+    }
+  }, [location.pathname]);
 
   if (!user) {
     return null;

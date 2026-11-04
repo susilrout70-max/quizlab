@@ -3,20 +3,19 @@
   "services": {
     "client": {
       "root": "client",
-      "framework": "vite"
-    },
-    "server": {
-      "root": "server",
-      "framework": "express",
-      "entrypoint": "src/index.ts"
+      "framework": "vite",
+      "rewrites": [
+        {
+          "source": "/(.*)",
+          "destination": "/index.html"
+        }
+      ]
     }
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "server"
-      }
+      "source": "/api/:path*",
+      "destination": "https://quizlab-api.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",

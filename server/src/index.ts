@@ -97,5 +97,3 @@ if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== '
 }
 
 export default app;
-module.exports = app;
-module.exports.default = app;
