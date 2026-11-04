@@ -6,6 +6,9 @@ import { query } from '../db/index.js';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quizlab_super_secret_jwt_key_2026';
+const isProductionRuntime = () =>
+  process.env.NODE_ENV === 'production' ||
+  (Boolean(process.env.VERCEL) && process.env.NODE_ENV !== 'test');
 
 if (!process.env.JWT_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
   console.warn('⚠️  JWT_SECRET environment variable is missing in production. Falling back to default secret.');
@@ -101,6 +104,16 @@ export async function signup(req: Request, res: Response): Promise<void> {
     } catch (dbErr: any) {
       console.warn('ℹ️ Neon DB query failed or pending. Using local store fallback:', dbErr?.message || dbErr);
 
+      if (isProductionRuntime()) {
+        res.status(503).json({
+          error: {
+            code: 'DATABASE_UNAVAILABLE',
+            message: 'Account storage is unavailable. Please try again later.',
+          },
+        });
+        return;
+      }
+
       if (mockUsers.has(email.toLowerCase())) {
         res.status(409).json({
           error: {
@@ -168,6 +181,17 @@ export async function login(req: Request, res: Response): Promise<void> {
       user = rows[0];
     } catch (dbErr: any) {
       console.warn('ℹ️ Neon DB lookup failed, falling back to mockUsers:', dbErr?.message || dbErr);
+
+      if (isProductionRuntime()) {
+        res.status(503).json({
+          error: {
+            code: 'DATABASE_UNAVAILABLE',
+            message: 'Account storage is unavailable. Please try again later.',
+          },
+        });
+        return;
+      }
+
       user = mockUsers.get(email.toLowerCase());
     }
 

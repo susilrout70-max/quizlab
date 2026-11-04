@@ -4,6 +4,9 @@ import { query } from '../db/index.js';
 import { mockUsers } from '../controllers/auth.controller.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'quizlab_super_secret_jwt_key_2026';
+const isProductionRuntime = () =>
+  process.env.NODE_ENV === 'production' ||
+  (Boolean(process.env.VERCEL) && process.env.NODE_ENV !== 'test');
 
 export interface AuthUser {
   id: string;
@@ -44,6 +47,16 @@ export async function authenticateToken(
         user = rows[0] as AuthUser;
       }
     } catch {
+      if (isProductionRuntime()) {
+        res.status(503).json({
+          error: {
+            code: 'DATABASE_UNAVAILABLE',
+            message: 'Account storage is unavailable. Please try again later.',
+          },
+        });
+        return;
+      }
+
       // Check in-memory store if DB is pending
       for (const u of mockUsers.values()) {
         if (u.id === payload.id) {

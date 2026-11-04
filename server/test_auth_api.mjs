@@ -1,5 +1,6 @@
 process.env.NODE_ENV = 'test';
 process.env.VERCEL = '1';
+process.env.DATABASE_URL = '';
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,6 +52,27 @@ describe('QuizLab Auth API Automated Tests', () => {
     assert.equal(res.status, 201);
     assert.ok(data.token, 'Token must be present in signup response');
     assert.equal(data.user.email, testEmail.toLowerCase());
+  });
+
+  test('POST /api/auth/signup - returns 503 when production database is unavailable', async () => {
+    process.env.NODE_ENV = 'production';
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Connection': 'close' },
+        body: JSON.stringify({
+          email: `unavailable_${Date.now()}@quizlab.test`,
+          password: testPassword,
+          full_name: testFullName,
+        }),
+      });
+
+      const data = await res.json();
+      assert.equal(res.status, 503);
+      assert.equal(data.error.code, 'DATABASE_UNAVAILABLE');
+    } finally {
+      process.env.NODE_ENV = 'test';
+    }
   });
 
   test('POST /api/auth/signup - rejects duplicate email with 409 and standardized error shape', async () => {
