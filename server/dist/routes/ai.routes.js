@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const auth_middleware_js_1 = require("../middleware/auth.middleware.js");
+const runtime_js_1 = require("../config/runtime.js");
 const router = (0, express_1.Router)();
+router.use(auth_middleware_js_1.authenticateToken);
 const CREATORS = {
     c: {
         subject: 'C Programming Language',
@@ -757,9 +760,7 @@ function resolveQuestion(rawMsg) {
         .replace(/^(what is|who is|explain|define|tell me about|how does|why is|formula for)\s+/i, '')
         .replace(/[?!.]+$/, '')
         .trim();
-    return `**Answer regarding "${cleanedTopic || rawMsg}":**\n\n` +
-        `• In computer science and technical studies, **${cleanedTopic || rawMsg}** is an important concept used for problem solving, structuring logic, and practical implementation.\n` +
-        `• For specific syntax, full form, or formula inquiries, feel free to ask directly (e.g., *"who created Python"*, *"what is a loop"*, *"formula for force"*, or *"what does HTML stand for"*).`;
+    return null;
 }
 // POST /api/ai/chat
 router.post('/chat', async (req, res) => {
@@ -772,14 +773,14 @@ router.post('/chat', async (req, res) => {
         // 1. Try Gemini API first if key exists with 3-second timeout
         const apiKey = process.env.GEMINI_API_KEY;
         if (apiKey && apiKey.length > 10) {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3500);
             try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 3500);
                 const systemPrompt = `You are QuizLab AI Study Assistant.
 Give a DIRECT, ACCURATE, and CONCISE answer to the student's question immediately on the very first line. Keep the response short, educational, and easy to understand. Do not write filler words.`;
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                     signal: controller.signal,
                     body: JSON.stringify({
                         contents: [
@@ -798,13 +799,45 @@ Give a DIRECT, ACCURATE, and CONCISE answer to the student's question immediatel
                         return res.json({ reply: reply.trim(), source: 'gemini' });
                     }
                 }
+                if ((0, runtime_js_1.isProductionRuntime)()) {
+                    return res.status(502).json({
+                        error: {
+                            code: 'AI_SERVICE_UNAVAILABLE',
+                            message: 'The study assistant is temporarily unavailable. Please try again later.',
+                        },
+                    });
+                }
             }
             catch (geminiErr) {
-                // Fallback smoothly without crashing
+                clearTimeout(timeout);
+                if ((0, runtime_js_1.isProductionRuntime)()) {
+                    return res.status(502).json({
+                        error: {
+                            code: 'AI_SERVICE_UNAVAILABLE',
+                            message: 'The study assistant is temporarily unavailable. Please try again later.',
+                        },
+                    });
+                }
             }
+        }
+        if ((0, runtime_js_1.isProductionRuntime)()) {
+            return res.status(503).json({
+                error: {
+                    code: 'AI_SERVICE_NOT_CONFIGURED',
+                    message: 'The study assistant is not configured yet.',
+                },
+            });
         }
         // 2. Comprehensive Instant Knowledge Engine
         const smartReply = resolveQuestion(trimmedMsg);
+        if (!smartReply) {
+            return res.status(503).json({
+                error: {
+                    code: 'AI_SERVICE_UNAVAILABLE',
+                    message: 'No verified answer is available right now. Please try again later.',
+                },
+            });
+        }
         return res.json({ reply: smartReply, source: 'knowledge_engine' });
     }
     catch (error) {

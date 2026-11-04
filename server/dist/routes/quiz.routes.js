@@ -9,6 +9,7 @@ router.use(auth_middleware_js_1.authenticateToken);
 router.get('/meta', quiz_controller_js_1.getQuizMeta);
 router.post('/start', quiz_controller_js_1.startQuiz);
 router.post('/reattempt/:attemptId', quiz_controller_js_1.reattemptQuiz);
+router.post('/answer/:attemptId', quiz_controller_js_1.saveAnswer);
 router.post('/submit/:attemptId', quiz_controller_js_1.submitQuiz);
 router.get('/history', quiz_controller_js_1.getQuizHistory);
 router.get('/analytics', quiz_controller_js_1.getQuizAnalytics);

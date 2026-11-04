@@ -4,6 +4,7 @@ import {
   getQuizMeta,
   startQuiz,
   reattemptQuiz,
+  saveAnswer,
   submitQuiz,
   getQuizHistory,
   getQuizAnalytics,
@@ -18,6 +19,7 @@ router.use(authenticateToken);
 router.get('/meta', getQuizMeta);
 router.post('/start', startQuiz);
 router.post('/reattempt/:attemptId', reattemptQuiz);
+router.post('/answer/:attemptId', saveAnswer);
 router.post('/submit/:attemptId', submitQuiz);
 router.get('/history', getQuizHistory);
 router.get('/analytics', getQuizAnalytics);

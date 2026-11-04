@@ -523,7 +523,7 @@ export const Landing: React.FC = () => {
                   Teacher Verified Signup
                 </h3>
                 <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed max-w-md">
-                  Educator roles are secured behind cryptographic institutional invite codes (<code className="text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">QUIZLAB_TEACHER_2026</code>) preventing unauthorized access to exam management.
+                  Educator registration requires an institutional invite code configured by the site administrator.
                 </p>
               </div>
               <button

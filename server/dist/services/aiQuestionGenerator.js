@@ -694,138 +694,6 @@ const dynamicTopicGenerators = {
     'Science': (diff) => [...generatePhysicsProblems(diff), ...generateChemistryProblems(diff)]
 };
 /**
- * Procedural fallback for EASY questions across ANY subject.
- * Strictly generates beginner-friendly, straightforward questions (never abstract architectural jargon).
- */
-function generateEasyFallbackQuestions(subject, countNeeded) {
-    const easyTemplates = [
-        {
-            q: `What is the primary role of ${subject} in modern technology?`,
-            opts: [
-                `It serves as an essential tool and standard foundation in ${subject}`,
-                `It is an obsolete hardware standard from the 1970s`,
-                `It is exclusively used for audio editing`,
-                `It has no practical application in modern computing`
-            ],
-            ans: 0,
-            exp: `${subject} is widely utilized as a core foundational technology in its domain.`
-        },
-        {
-            q: `Which of the following is true regarding learning and using ${subject}?`,
-            opts: [
-                `Mastering the core syntax and basic rules is the first essential step in ${subject}`,
-                `It requires no learning and works automatically without code`,
-                `It can only be executed on supercomputers`,
-                `It was officially discontinued decades ago`
-            ],
-            ans: 0,
-            exp: `Understanding foundational syntax and standard rules is key to mastering ${subject}.`
-        },
-        {
-            q: `Which standard practice is recommended for beginners studying ${subject}?`,
-            opts: [
-                `Writing clean, well-commented code and testing basic examples regularly`,
-                `Memorizing entire libraries without running any practical code`,
-                `Ignoring error messages and disabling debugging output`,
-                `Never checking official documentation or specifications`
-            ],
-            ans: 0,
-            exp: `Hands-on practice, testing, and reviewing documentation build strong competency in ${subject}.`
-        },
-        {
-            q: `Why is consistent formatting and indentation important in ${subject}?`,
-            opts: [
-                `Improves code readability, maintainability, and prevents syntax errors`,
-                `Doubles the execution speed of the hardware`,
-                `Encodes the file into an encrypted binary format`,
-                `Deletes unused variables automatically`
-            ],
-            ans: 0,
-            exp: `Clean formatting and proper indentation make code easy to read, debug, and maintain.`
-        },
-        {
-            q: `In ${subject}, what is the best way to inspect the value of a variable during learning?`,
-            opts: [
-                `Use standard print or logging functions to display its current value`,
-                `Guess the value without running the program`,
-                `Turn off the computer monitor`,
-                `Delete the variable from the source file`
-            ],
-            ans: 0,
-            exp: `Printing or logging variable values to the console is the simplest debugging tool for beginners.`
-        },
-        {
-            q: `Which file extension or identifier is commonly associated with ${subject}?`,
-            opts: [
-                `Standard file naming conventions according to ${subject} language rules`,
-                `Random binary extensions like .xyz123`,
-                `Only executable .exe extensions`,
-                `Unsaved temporary buffer names`
-            ],
-            ans: 0,
-            exp: `Files in ${subject} follow standard conventions recognized by compilers and interpreters.`
-        },
-        {
-            q: `What is a "syntax error" in ${subject}?`,
-            opts: [
-                `A mistake in the code structure or grammar that prevents the program from running`,
-                `A hardware failure in the power supply`,
-                `An intentional delay added to slow down execution`,
-                `A successful program run that prints the correct result`
-            ],
-            ans: 0,
-            exp: `Syntax errors happen when code violates the grammar rules of ${subject}, preventing execution.`
-        },
-        {
-            q: `In ${subject}, why are meaningful variable and function names recommended?`,
-            opts: [
-                `They make code self-documenting and easier for humans to understand`,
-                `The computer executes meaningful names faster than single-letter names`,
-                `They are required to connect to the internet`,
-                `They decrease physical memory chip temperatures`
-            ],
-            ans: 0,
-            exp: `Descriptive names clarify what data a variable holds or what action a function performs.`
-        },
-        {
-            q: `What does debugging mean in the context of ${subject}?`,
-            opts: [
-                `The process of finding, analyzing, and fixing errors or bugs in code`,
-                `Cleaning physical dust off the computer keyboard`,
-                `Deleting the entire project and starting from scratch`,
-                `Purchasing commercial software licenses`
-            ],
-            ans: 0,
-            exp: `Debugging is the routine practice of locating and correcting bugs in software programs.`
-        },
-        {
-            q: `What is the benefit of breaking code into smaller functions or components in ${subject}?`,
-            opts: [
-                `Promotes code reusability, simplifies testing, and keeps logic organized`,
-                `Increases code file size unnecessarily`,
-                `Prevents anyone else from reading your work`,
-                `Bypasses all software security checks`
-            ],
-            ans: 0,
-            exp: `Modular functions keep code organized, easy to test, and reusable across a project.`
-        }
-    ];
-    const results = [];
-    for (let i = 0; i < countNeeded; i++) {
-        const tmpl = easyTemplates[i % easyTemplates.length];
-        results.push({
-            subject,
-            difficulty: 'easy',
-            question_text: tmpl.q,
-            options: tmpl.opts,
-            correct_option: tmpl.ans,
-            explanation: tmpl.exp,
-            source: 'ai_generated'
-        });
-    }
-    return results;
-}
-/**
  * Hybrid AI Generation: Generates new questions, saves them to database, and returns them
  */
 async function generateAIQuestions(subject, difficulty, countNeeded) {
@@ -842,9 +710,9 @@ async function generateAIQuestions(subject, difficulty, countNeeded) {
             const prompt = `Generate ${countNeeded} distinct multiple-choice quiz questions on the subject "${subject}" with difficulty level "${difficulty}" (${promptDifficultyDesc}).
 Format response strictly as valid JSON array with objects matching:
 [{ "question_text": "...", "options": ["opt1", "opt2", "opt3", "opt4"], "correct_option": 0, "explanation": "..." }]`;
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: { responseMimeType: 'application/json' }
@@ -857,13 +725,20 @@ Format response strictly as valid JSON array with objects matching:
                     const parsed = JSON.parse(text);
                     if (Array.isArray(parsed)) {
                         for (const item of parsed) {
-                            if (item.question_text && Array.isArray(item.options) && item.options.length === 4) {
+                            if (typeof item.question_text === 'string' &&
+                                item.question_text.trim() &&
+                                Array.isArray(item.options) &&
+                                item.options.length === 4 &&
+                                item.options.every((option) => typeof option === 'string') &&
+                                Number.isInteger(item.correct_option) &&
+                                item.correct_option >= 0 &&
+                                item.correct_option < 4) {
                                 generated.push({
                                     subject,
                                     difficulty,
                                     question_text: item.question_text,
                                     options: item.options,
-                                    correct_option: typeof item.correct_option === 'number' ? item.correct_option : 0,
+                                    correct_option: item.correct_option,
                                     explanation: item.explanation || 'Verified concept explanation for ' + subject,
                                     source: 'ai_generated'
                                 });
@@ -930,37 +805,9 @@ Format response strictly as valid JSON array with objects matching:
             }
         }
     }
-    // 3. Fallback synthesizer if more questions are needed
+    // Never present generic filler as a real question.
     if (generated.length < countNeeded) {
-        const needed = countNeeded - generated.length;
-        if (difficulty === 'easy') {
-            // Use STRICTLY EASY beginner templates for easy difficulty
-            const easyFallbacks = generateEasyFallbackQuestions(subject, needed);
-            generated.push(...easyFallbacks);
-        }
-        else {
-            // For medium and difficult, use intermediate conceptual archetypes
-            const diffUpper = difficulty.toUpperCase();
-            let index = 0;
-            while (generated.length < countNeeded) {
-                const salt = Math.floor(Math.random() * 9000) + 1000;
-                generated.push({
-                    subject,
-                    difficulty,
-                    question_text: `[${subject} · ${diffUpper} Level] Which of the following statements represents the standard best practice in ${subject}? (#${salt})`,
-                    options: [
-                        `Utilize targeted, modular patterns and verify core rules for ${subject}`,
-                        `Deprecated legacy syntax superseded in recent releases`,
-                        `Alternative configuration causing unintended performance degradation`,
-                        `Strict anti-pattern rejected by modern ${subject} guidelines`
-                    ],
-                    correct_option: 0,
-                    explanation: `Standard best practice established for ${subject} under ${difficulty} level conditions.`,
-                    source: 'ai_generated'
-                });
-                index++;
-            }
-        }
+        throw new Error('Question generation could not produce enough validated questions.');
     }
     // 4. Persist new questions to database so bank grows perpetually
     const savedQuestions = [];
@@ -977,10 +824,7 @@ Format response strictly as valid JSON array with objects matching:
             }
         }
         catch {
-            savedQuestions.push({
-                ...q,
-                id: 'gen-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)
-            });
+            throw new Error('Generated questions could not be saved to the database.');
         }
     }
     return savedQuestions;

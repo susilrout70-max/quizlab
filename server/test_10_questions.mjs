@@ -37,13 +37,22 @@ async function test10Questions() {
   }
 
   console.log('\nSubmitting answers for all 10 questions...');
+  for (const [position, selected_option] of Object.entries(answers)) {
+    const answerRes = await fetch(`${BASE_URL}/quiz/answer/${startData.attempt_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ position: Number(position), selected_option }),
+    });
+    if (!answerRes.ok) throw new Error('Saving answer failed: ' + JSON.stringify(await answerRes.json()));
+  }
+
   const submitRes = await fetch(`${BASE_URL}/quiz/submit/${startData.attempt_id}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({}),
   });
 
   const submitData = await submitRes.json();

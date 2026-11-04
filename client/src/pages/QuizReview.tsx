@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api, getErrorMessage } from '../lib/api.js';
 import { Navbar } from '../components/Navbar.js';
 import { ReviewedQuestion, QuizAttemptStartResponse } from '../types.js';
 import {
@@ -51,7 +51,7 @@ export const QuizReview: React.FC = () => {
         setAttempt(res.data.attempt);
         setQuestions(res.data.questions);
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to load quiz results');
+        setError(getErrorMessage(err, 'Failed to load quiz results'));
       } finally {
         setIsLoading(false);
       }
@@ -69,7 +69,7 @@ export const QuizReview: React.FC = () => {
       sessionStorage.setItem(`quiz_${res.data.attempt_id}`, JSON.stringify(res.data));
       navigate(`/quiz/${res.data.attempt_id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to initiate reattempt');
+      setError(getErrorMessage(err, 'Failed to initiate reattempt'));
       setIsReattempting(false);
     }
   };

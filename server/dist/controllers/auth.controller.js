@@ -12,12 +12,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const zod_1 = require("zod");
 const index_js_1 = require("../db/index.js");
-const JWT_SECRET = process.env.JWT_SECRET || 'quizlab_super_secret_jwt_key_2026';
-const isProductionRuntime = () => process.env.NODE_ENV === 'production' ||
-    (Boolean(process.env.VERCEL) && process.env.NODE_ENV !== 'test');
-if (!process.env.JWT_SECRET && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
-    console.warn('⚠️  JWT_SECRET environment variable is missing in production. Falling back to default secret.');
-}
+const runtime_js_1 = require("../config/runtime.js");
 // In-memory store used if Neon DB connection is pending/placeholder
 exports.mockUsers = new Map();
 const signupSchema = zod_1.z.object({
@@ -42,24 +37,34 @@ async function signup(req, res) {
         });
         return;
     }
+    const jwtSecret = (0, runtime_js_1.getJwtSecret)();
+    if (!jwtSecret) {
+        res.status(503).json({
+            error: {
+                code: 'JWT_SECRET_MISSING',
+                message: 'Authentication is temporarily unavailable because the server is not configured.',
+            },
+        });
+        return;
+    }
     const { email, password, full_name, role, teacher_code } = parseResult.data;
-    // Validate teacher institutional code
+    // Teacher access codes must be configured outside source control.
     if (role === 'teacher') {
-        let expectedCode = 'QUIZLAB_TEACHER_2026';
-        try {
-            const configRes = await (0, index_js_1.query)("SELECT value FROM app_config WHERE key = 'TEACHER_INVITE_CODE'");
-            if (configRes.rows.length > 0 && configRes.rows[0].value) {
-                expectedCode = configRes.rows[0].value.trim();
-            }
-        }
-        catch {
-            // Use fallback expectedCode if query fails
+        const expectedCode = process.env.TEACHER_INVITE_CODE?.trim();
+        if (!expectedCode) {
+            res.status(503).json({
+                error: {
+                    code: 'TEACHER_SIGNUP_NOT_CONFIGURED',
+                    message: 'Teacher registration is not configured. Please contact the site administrator.',
+                },
+            });
+            return;
         }
         if (!teacher_code || teacher_code.trim() !== expectedCode) {
             res.status(400).json({
                 error: {
                     code: 'INVALID_INVITE_CODE',
-                    message: 'Invalid teacher invite code. Please enter the valid institutional code: QUIZLAB_TEACHER_2026',
+                    message: 'Invalid teacher invite code.',
                 },
             });
             return;
@@ -83,7 +88,7 @@ async function signup(req, res) {
          VALUES ($1, $2, $3, $4)
          RETURNING id, email, full_name, role, created_at`, [email.toLowerCase(), passwordHash, full_name, role]);
             const user = insertRes.rows[0];
-            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, jwtSecret, { expiresIn: '7d' });
             res.status(201).json({
                 message: 'Account created successfully',
                 token,
@@ -92,7 +97,7 @@ async function signup(req, res) {
         }
         catch (dbErr) {
             console.warn('ℹ️ Neon DB query failed or pending. Using local store fallback:', dbErr?.message || dbErr);
-            if (isProductionRuntime()) {
+            if ((0, runtime_js_1.isProductionRuntime)()) {
                 res.status(503).json({
                     error: {
                         code: 'DATABASE_UNAVAILABLE',
@@ -119,7 +124,7 @@ async function signup(req, res) {
                 role,
             };
             exports.mockUsers.set(email.toLowerCase(), user);
-            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
+            const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, jwtSecret, { expiresIn: '7d' });
             res.status(201).json({
                 message: 'Account created successfully',
                 token,
@@ -148,6 +153,16 @@ async function login(req, res) {
         });
         return;
     }
+    const jwtSecret = (0, runtime_js_1.getJwtSecret)();
+    if (!jwtSecret) {
+        res.status(503).json({
+            error: {
+                code: 'JWT_SECRET_MISSING',
+                message: 'Authentication is temporarily unavailable because the server is not configured.',
+            },
+        });
+        return;
+    }
     const { email, password } = parseResult.data;
     try {
         let user;
@@ -157,7 +172,7 @@ async function login(req, res) {
         }
         catch (dbErr) {
             console.warn('ℹ️ Neon DB lookup failed, falling back to mockUsers:', dbErr?.message || dbErr);
-            if (isProductionRuntime()) {
+            if ((0, runtime_js_1.isProductionRuntime)()) {
                 res.status(503).json({
                     error: {
                         code: 'DATABASE_UNAVAILABLE',
@@ -187,7 +202,7 @@ async function login(req, res) {
             });
             return;
         }
-        const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jsonwebtoken_1.default.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, jwtSecret, { expiresIn: '7d' });
         res.json({
             message: 'Login successful',
             token,

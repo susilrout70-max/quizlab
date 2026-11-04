@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { query } from '../db/index.js';
 import { generateAIQuestions, GeneratedQuestion } from '../services/aiQuestionGenerator.js';
+import { isProductionRuntime } from '../config/runtime.js';
 
 // In-memory fallbacks when Neon DB connection is pending
 const mockQuestionsBank: GeneratedQuestion[] = [
@@ -85,6 +86,15 @@ const mockQuestionsBank: GeneratedQuestion[] = [
 const mockAttempts = new Map<string, any>();
 const mockAttemptQuestions = new Map<string, any[]>();
 
+function sendDatabaseUnavailable(res: Response): void {
+  res.status(503).json({
+    error: {
+      code: 'DATABASE_UNAVAILABLE',
+      message: 'Quiz data is temporarily unavailable. Please try again later.',
+    },
+  });
+}
+
 export const CATEGORIES_WITH_SUBJECTS = [
   {
     id: 'programming',
@@ -163,6 +173,11 @@ export async function startQuiz(req: AuthenticatedRequest, res: Response): Promi
       );
       usedQuestionIds = usedRes.rows.map((r) => r.question_id);
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       // In-memory fallback
       for (const [attId, att] of mockAttempts.entries()) {
         if (att.user_id === userId && att.subject === subject && att.difficulty === normalizedDiff) {
@@ -203,6 +218,11 @@ export async function startQuiz(req: AuthenticatedRequest, res: Response): Promi
         options: typeof r.options === 'string' ? JSON.parse(r.options) : r.options,
       }));
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       // In-memory fallback
       const candidates = mockQuestionsBank.filter(
         (q) => q.subject === subject && q.difficulty === normalizedDiff && !usedQuestionIds.includes(q.id!)
@@ -215,8 +235,18 @@ export async function startQuiz(req: AuthenticatedRequest, res: Response): Promi
     if (selectedQuestions.length < targetCount) {
       const needed = targetCount - selectedQuestions.length;
       console.log(`🤖 Generating ${needed} fresh questions via Hybrid AI for ${subject} (${normalizedDiff})...`);
-      const aiQuestions = await generateAIQuestions(subject, normalizedDiff, needed);
-      selectedQuestions = [...selectedQuestions, ...aiQuestions];
+      try {
+        const aiQuestions = await generateAIQuestions(subject, normalizedDiff, needed);
+        selectedQuestions = [...selectedQuestions, ...aiQuestions];
+      } catch {
+        res.status(503).json({
+          error: {
+            code: 'QUESTION_GENERATION_UNAVAILABLE',
+            message: 'Not enough stored questions are available and question generation failed.',
+          },
+        });
+        return;
+      }
     }
 
     // Shuffle questions order for this attempt
@@ -251,6 +281,11 @@ export async function startQuiz(req: AuthenticatedRequest, res: Response): Promi
         );
       }
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       // In-memory fallback
       attemptId = 'att-' + Date.now();
       mockAttempts.set(attemptId, {
@@ -339,6 +374,11 @@ export async function reattemptQuiz(req: AuthenticatedRequest, res: Response): P
         options: typeof r.options === 'string' ? JSON.parse(r.options) : r.options,
       }));
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       // In-memory fallback
       originalAttempt = mockAttempts.get(attemptId);
       if (!originalAttempt || originalAttempt.user_id !== userId) {
@@ -383,6 +423,11 @@ export async function reattemptQuiz(req: AuthenticatedRequest, res: Response): P
         );
       }
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       newAttemptId = 'att-re-' + Date.now();
       mockAttempts.set(newAttemptId, {
         id: newAttemptId,
@@ -427,6 +472,102 @@ export async function reattemptQuiz(req: AuthenticatedRequest, res: Response): P
   }
 }
 
+export async function saveAnswer(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const userId = req.user!.id;
+  const { attemptId } = req.params;
+  const { position, selected_option: selectedOption } = req.body;
+
+  if (!Number.isInteger(position) || position < 1 || !Number.isInteger(selectedOption) || selectedOption < 0 || selectedOption > 3) {
+    res.status(400).json({ error: 'Question position and selected option are invalid.' });
+    return;
+  }
+
+  try {
+    const updated = await query(
+      `UPDATE quiz_attempt_questions qaq
+       SET selected_option = $1
+       FROM quiz_attempts qa
+       WHERE qaq.attempt_id = qa.id
+         AND qa.id = $2
+         AND qa.user_id = $3
+         AND qa.status = 'in_progress'
+         AND qaq.position = $4
+         AND NOW() < qa.started_at + (qa.total_questions * CASE qa.difficulty
+           WHEN 'easy' THEN 60
+           WHEN 'medium' THEN 90
+           ELSE 120
+         END) * INTERVAL '1 second'
+       RETURNING qaq.id`,
+      [selectedOption, attemptId, userId, position]
+    );
+
+    if (updated.rows.length > 0) {
+      res.json({ message: 'Answer saved.' });
+      return;
+    }
+
+    const attemptRes = await query(
+      'SELECT status, started_at, total_questions, difficulty FROM quiz_attempts WHERE id = $1 AND user_id = $2',
+      [attemptId, userId]
+    );
+    const attempt = attemptRes.rows[0];
+    if (!attempt) {
+      res.status(404).json({ error: 'Quiz attempt not found.' });
+      return;
+    }
+    if (attempt.status !== 'in_progress') {
+      res.status(409).json({ error: 'This quiz attempt is already closed.' });
+      return;
+    }
+
+    const secondsPerQuestion = attempt.difficulty === 'easy' ? 60 : attempt.difficulty === 'medium' ? 90 : 120;
+    const deadline = new Date(attempt.started_at).getTime() + Number(attempt.total_questions) * secondsPerQuestion * 1000;
+    if (Date.now() >= deadline) {
+      res.status(409).json({
+        error: {
+          code: 'QUIZ_TIME_EXPIRED',
+          message: 'The quiz time has expired. Your saved answers will be submitted.',
+        },
+      });
+      return;
+    }
+
+    res.status(404).json({ error: 'Question not found for this attempt.' });
+  } catch {
+    if (isProductionRuntime()) {
+      sendDatabaseUnavailable(res);
+      return;
+    }
+
+    const attempt = mockAttempts.get(attemptId);
+    const questions = mockAttemptQuestions.get(attemptId) || [];
+    if (!attempt || attempt.user_id !== userId) {
+      res.status(404).json({ error: 'Quiz attempt not found.' });
+      return;
+    }
+
+    const secondsPerQuestion = attempt.difficulty === 'easy' ? 60 : attempt.difficulty === 'medium' ? 90 : 120;
+    const deadline = new Date(attempt.started_at).getTime() + attempt.total_questions * secondsPerQuestion * 1000;
+    if (attempt.status !== 'in_progress' || Date.now() >= deadline) {
+      res.status(409).json({
+        error: {
+          code: 'QUIZ_TIME_EXPIRED',
+          message: 'This quiz attempt is closed or its time has expired.',
+        },
+      });
+      return;
+    }
+
+    const question = questions.find((item) => item.position === position);
+    if (!question) {
+      res.status(404).json({ error: 'Question not found for this attempt.' });
+      return;
+    }
+    question.selected_option = selectedOption;
+    res.json({ message: 'Answer saved.' });
+  }
+}
+
 /**
  * POST /api/quiz/submit/:attemptId
  * Submits answers, grades on the server, calculates score & percentage
@@ -434,7 +575,6 @@ export async function reattemptQuiz(req: AuthenticatedRequest, res: Response): P
 export async function submitQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   const userId = req.user!.id;
   const { attemptId } = req.params;
-  const { answers } = req.body; // map: { [position]: selected_option_index }
 
   try {
     let questions: any[] = [];
@@ -460,7 +600,7 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
       }
 
       const qRes = await query(
-        `SELECT id, position, question_text, options, correct_option, explanation
+        `SELECT id, position, question_text, options, selected_option, correct_option, explanation
          FROM quiz_attempt_questions
          WHERE attempt_id = $1
          ORDER BY position ASC`,
@@ -471,6 +611,11 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
         options: typeof r.options === 'string' ? JSON.parse(r.options) : r.options,
       }));
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       attempt = mockAttempts.get(attemptId);
       if (!attempt || attempt.user_id !== userId) {
         res.status(404).json({ error: 'Attempt not found or unauthorized' });
@@ -488,7 +633,9 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
     const reviewedQuestions: any[] = [];
 
     for (const q of questions) {
-      const userSelected = answers && answers[q.position] !== undefined ? Number(answers[q.position]) : null;
+      const userSelected = q.selected_option === null || q.selected_option === undefined
+        ? null
+        : Number(q.selected_option);
       const isCorrect = userSelected !== null && userSelected === q.correct_option;
 
       if (isCorrect) {
@@ -508,13 +655,15 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
       // Update question record
       try {
         await query(
-          `UPDATE quiz_attempt_questions
-           SET selected_option = $1, is_correct = $2
-           WHERE id = $3`,
-          [userSelected, isCorrect, q.id]
+          `UPDATE quiz_attempt_questions SET is_correct = $1 WHERE id = $2`,
+          [isCorrect, q.id]
         );
       } catch {
-        q.selected_option = userSelected;
+        if (isProductionRuntime()) {
+          sendDatabaseUnavailable(res);
+          return;
+        }
+
         q.is_correct = isCorrect;
       }
     }
@@ -531,6 +680,11 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
         [score, percentage, attemptId]
       );
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       attempt.score = score;
       attempt.percentage = percentage;
       attempt.status = 'completed';
@@ -572,6 +726,11 @@ export async function getQuizHistory(req: AuthenticatedRequest, res: Response): 
       );
       res.json({ attempts: rows });
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       const userAttempts: any[] = [];
       for (const att of mockAttempts.values()) {
         if (att.user_id === userId && att.status === 'completed') {
@@ -605,6 +764,11 @@ export async function getQuizAnalytics(req: AuthenticatedRequest, res: Response)
       );
       attempts = resDb.rows;
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       for (const att of mockAttempts.values()) {
         if (att.user_id === userId && att.status === 'completed') {
           attempts.push(att);
@@ -725,6 +889,11 @@ export async function getAttemptReview(req: AuthenticatedRequest, res: Response)
         options: typeof r.options === 'string' ? JSON.parse(r.options) : r.options,
       }));
     } catch {
+      if (isProductionRuntime()) {
+        sendDatabaseUnavailable(res);
+        return;
+      }
+
       attempt = mockAttempts.get(attemptId);
       if (!attempt || attempt.user_id !== userId) {
         res.status(404).json({ error: 'Attempt not found or access denied' });

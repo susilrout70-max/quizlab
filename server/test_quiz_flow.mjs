@@ -38,13 +38,22 @@ async function testFlow() {
   // 3. Submit Answers
   console.log('\n3. Submitting answers...');
   const answers = { 1: 0, 2: 1, 3: 2, 4: 0, 5: 3 };
+  for (const [position, selected_option] of Object.entries(answers)) {
+    const answerRes = await fetch(`${BASE_URL}/quiz/answer/${startData.attempt_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ position: Number(position), selected_option }),
+    });
+    if (!answerRes.ok) throw new Error('Saving answer failed: ' + JSON.stringify(await answerRes.json()));
+  }
+
   const submitRes = await fetch(`${BASE_URL}/quiz/submit/${startData.attempt_id}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ answers }),
+    body: JSON.stringify({}),
   });
   const submitData = await submitRes.json();
   if (!submitRes.ok) throw new Error('Submit failed: ' + JSON.stringify(submitData));
@@ -67,13 +76,23 @@ async function testFlow() {
   console.log('   Matches original Q1 exactly:', reattemptData.questions[0].question_text === startData.questions[0].question_text ? 'YES ✅' : 'NO ❌');
 
   // Submit reattempt
+  const reattemptAnswers = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const [position, selected_option] of Object.entries(reattemptAnswers)) {
+    const answerRes = await fetch(`${BASE_URL}/quiz/answer/${reattemptData.attempt_id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ position: Number(position), selected_option }),
+    });
+    if (!answerRes.ok) throw new Error('Saving reattempt answer failed: ' + JSON.stringify(await answerRes.json()));
+  }
+
   const reattemptSubmitRes = await fetch(`${BASE_URL}/quiz/submit/${reattemptData.attempt_id}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ answers: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } }),
+    body: JSON.stringify({}),
   });
   const reattemptSubmitData = await reattemptSubmitRes.json();
   console.log('   ✅ Reattempt submitted! Score:', `${reattemptSubmitData.score}/${reattemptSubmitData.total_questions}`);

@@ -28,11 +28,6 @@ const FREQUENT_QUESTIONS = [
 
 export const AiStudyChatbot: React.FC = () => {
   const { user } = useAuth();
-
-  if (!user) {
-    return null;
-  }
-
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -55,6 +50,10 @@ export const AiStudyChatbot: React.FC = () => {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  if (!user) {
+    return null;
+  }
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || input).trim();

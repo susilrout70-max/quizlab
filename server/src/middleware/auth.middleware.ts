@@ -2,11 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { query } from '../db/index.js';
 import { mockUsers } from '../controllers/auth.controller.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'quizlab_super_secret_jwt_key_2026';
-const isProductionRuntime = () =>
-  process.env.NODE_ENV === 'production' ||
-  (Boolean(process.env.VERCEL) && process.env.NODE_ENV !== 'test');
+import { getJwtSecret, isProductionRuntime } from '../config/runtime.js';
 
 export interface AuthUser {
   id: string;
@@ -32,8 +28,19 @@ export async function authenticateToken(
     return;
   }
 
+  const jwtSecret = getJwtSecret();
+  if (!jwtSecret) {
+    res.status(503).json({
+      error: {
+        code: 'JWT_SECRET_MISSING',
+        message: 'Authentication is temporarily unavailable because the server is not configured.',
+      },
+    });
+    return;
+  }
+
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { id: string; role: 'student' | 'teacher' };
+    const payload = jwt.verify(token, jwtSecret) as { id: string; role: 'student' | 'teacher' };
     
     let user: AuthUser | undefined;
 

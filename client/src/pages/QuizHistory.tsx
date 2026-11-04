@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api, getErrorMessage } from '../lib/api.js';
 import { Navbar } from '../components/Navbar.js';
 import { PastAttempt, QuizAnalytics, QuizAttemptStartResponse } from '../types.js';
 import {
@@ -32,7 +32,7 @@ export const QuizHistory: React.FC = () => {
         setAttempts(historyRes.data.attempts || []);
         setAnalytics(analyticsRes.data);
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to load history');
+        setError(getErrorMessage(err, 'Failed to load history'));
       } finally {
         setIsLoading(false);
       }
@@ -48,7 +48,7 @@ export const QuizHistory: React.FC = () => {
       sessionStorage.setItem(`quiz_${res.data.attempt_id}`, JSON.stringify(res.data));
       navigate(`/quiz/${res.data.attempt_id}`);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to start reattempt');
+      alert(getErrorMessage(err, 'Failed to start reattempt'));
       setReattemptingId(null);
     }
   };

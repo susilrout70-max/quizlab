@@ -9,6 +9,10 @@ import path from 'path';
 dotenv.config({ path: path.resolve('server/.env') });
 dotenv.config({ path: path.resolve('.env') });
 
+if (!process.env.TEACHER_INVITE_CODE) {
+  throw new Error('TEACHER_INVITE_CODE must be configured to run the live teacher signup test.');
+}
+
 const imported = await import('./dist/index.js');
 const app = imported.default?.default || imported.default || imported;
 const { pool, query } = await import('./dist/db/index.js');
@@ -77,7 +81,7 @@ async function main() {
     console.log('   ✅ Student record verified in Neon PostgreSQL table.');
 
     // 4. Teacher Signup (Valid Code)
-    console.log('\n🧪 Test 4: POST /api/auth/signup (Teacher Registration with QUIZLAB_TEACHER_2026)');
+    console.log('\n🧪 Test 4: POST /api/auth/signup (Teacher Registration with configured invite code)');
     const teacherSignupRes = await fetch(`${baseUrl}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,7 +90,7 @@ async function main() {
         password: securePassword,
         full_name: 'Prof. Miller',
         role: 'teacher',
-        teacher_code: 'QUIZLAB_TEACHER_2026'
+        teacher_code: process.env.TEACHER_INVITE_CODE
       }),
     });
     assert.strictEqual(teacherSignupRes.status, 201);

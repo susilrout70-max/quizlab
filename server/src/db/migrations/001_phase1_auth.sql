@@ -8,11 +8,6 @@ CREATE TABLE IF NOT EXISTS app_config (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed default teacher invite code if not exists
-INSERT INTO app_config (key, value)
-VALUES ('TEACHER_INVITE_CODE', 'QUIZLAB_TEACHER_2026')
-ON CONFLICT (key) DO NOTHING;
-
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

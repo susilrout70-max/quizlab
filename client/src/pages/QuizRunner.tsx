@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api.js';
+import { api, getErrorMessage } from '../lib/api.js';
 import { Navbar } from '../components/Navbar.js';
 import { QuizQuestion, QuizSubmitResponse } from '../types.js';
 import {
@@ -32,7 +32,9 @@ export const QuizRunner: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [totalDuration, setTotalDuration] = useState<number>(600);
   const [isTimeUp, setIsTimeUp] = useState<boolean>(false);
+  const [isSavingAnswer, setIsSavingAnswer] = useState(false);
   const autoSubmittedRef = useRef(false);
+  const answerSaveRef = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => {
     if (!attemptId) {
@@ -103,24 +105,52 @@ export const QuizRunner: React.FC = () => {
   const totalQuestions = questions.length;
   const answeredCount = Object.keys(answers).length;
 
-  const handleSelectOption = (optionIndex: number) => {
+  const handleSelectOption = async (optionIndex: number) => {
     if (!currentQuestion || !attemptId) return;
+    const previousAnswer = answers[currentQuestion.position];
     const updated = {
       ...answers,
       [currentQuestion.position]: optionIndex,
     };
     setAnswers(updated);
-    // Persist locally for offline/refresh protection
     localStorage.setItem(`quiz_answers_${attemptId}`, JSON.stringify(updated));
+    setError(null);
+    setIsSavingAnswer(true);
+
+    const saveRequest = api.post(`/quiz/answer/${attemptId}`, {
+      position: currentQuestion.position,
+      selected_option: optionIndex,
+    });
+    answerSaveRef.current = saveRequest;
+
+    try {
+      await saveRequest;
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Could not save your answer. Please select it again.'));
+      setAnswers((currentAnswers) => {
+        const restored = { ...currentAnswers };
+        if (previousAnswer === undefined) {
+          delete restored[currentQuestion.position];
+        } else {
+          restored[currentQuestion.position] = previousAnswer;
+        }
+        localStorage.setItem(`quiz_answers_${attemptId}`, JSON.stringify(restored));
+        return restored;
+      });
+    } finally {
+      if (answerSaveRef.current === saveRequest) {
+        answerSaveRef.current = Promise.resolve();
+      }
+      setIsSavingAnswer(false);
+    }
   };
 
   const handleAutoSubmit = async () => {
     if (!attemptId || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await api.post<QuizSubmitResponse>(`/quiz/submit/${attemptId}`, {
-        answers,
-      });
+      await answerSaveRef.current;
+      const res = await api.post<QuizSubmitResponse>(`/quiz/submit/${attemptId}`, {});
 
       sessionStorage.removeItem(`quiz_${attemptId}`);
       sessionStorage.removeItem(`quiz_timer_end_${attemptId}`);
@@ -129,7 +159,7 @@ export const QuizRunner: React.FC = () => {
       navigate(`/review/${attemptId}`);
     } catch (err: any) {
       console.error('Auto-submit error:', err);
-      setError(err.response?.data?.error || 'Failed to auto-submit quiz when time expired.');
+      setError(getErrorMessage(err, 'Failed to auto-submit quiz when time expired.'));
       setIsSubmitting(false);
     }
   };
@@ -140,9 +170,8 @@ export const QuizRunner: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await api.post<QuizSubmitResponse>(`/quiz/submit/${attemptId}`, {
-        answers,
-      });
+      await answerSaveRef.current;
+      const res = await api.post<QuizSubmitResponse>(`/quiz/submit/${attemptId}`, {});
 
       sessionStorage.removeItem(`quiz_${attemptId}`);
       sessionStorage.removeItem(`quiz_timer_end_${attemptId}`);
@@ -150,7 +179,7 @@ export const QuizRunner: React.FC = () => {
       sessionStorage.setItem(`review_${attemptId}`, JSON.stringify(res.data));
       navigate(`/review/${attemptId}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to submit quiz. Please try again.');
+      setError(getErrorMessage(err, 'Failed to submit quiz. Please try again.'));
       setIsSubmitting(false);
       setShowConfirmModal(false);
     }
@@ -312,6 +341,7 @@ export const QuizRunner: React.FC = () => {
                   key={optIdx}
                   type="button"
                   onClick={() => handleSelectOption(optIdx)}
+                  disabled={isSavingAnswer || isSubmitting}
                   className={`w-full text-left p-4 rounded-xl border transition flex items-center gap-3 sm:gap-4 cursor-pointer min-h-[54px] ${
                     isSelected
                       ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-500 text-slate-900 dark:text-white ring-2 ring-emerald-500/20 shadow-sm'
@@ -440,7 +470,7 @@ export const QuizRunner: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isSavingAnswer}
                 onClick={handleSubmit}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >

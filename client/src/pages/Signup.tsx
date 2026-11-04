@@ -50,11 +50,6 @@ export const Signup: React.FC = () => {
     e.preventDefault();
     setError(null);
 
-    if (role === 'teacher' && teacherCode.trim() !== 'QUIZLAB_TEACHER_2026') {
-      setError('Invalid teacher invite code. Please enter the valid institutional code: QUIZLAB_TEACHER_2026');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
@@ -334,12 +329,9 @@ export const Signup: React.FC = () => {
                   required
                   value={teacherCode}
                   onChange={(e) => setTeacherCode(e.target.value)}
-                  placeholder="e.g. QUIZLAB_TEACHER_2026"
+                  placeholder="Enter your institutional invite code"
                   className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/80 rounded-lg text-slate-900 dark:text-slate-100 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
-                <p className="text-[11px] text-amber-700 dark:text-amber-400">
-                  Tip for demo evaluation: use code <code>QUIZLAB_TEACHER_2026</code>
-                </p>
               </div>
             )}
 

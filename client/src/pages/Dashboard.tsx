@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import { Navbar } from '../components/Navbar.js';
-import { api } from '../lib/api.js';
+import { api, getErrorMessage } from '../lib/api.js';
 import { Difficulty, QuizAttemptStartResponse, QuizAnalytics } from '../types.js';
 import {
   Code,
@@ -186,7 +186,7 @@ export const Dashboard: React.FC = () => {
       sessionStorage.setItem(`quiz_${res.data.attempt_id}`, JSON.stringify(res.data));
       navigate(`/quiz/${res.data.attempt_id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to start quiz. Please try again.');
+      setError(getErrorMessage(err, 'Failed to start quiz. Please try again.'));
     } finally {
       setIsStarting(false);
     }
