@@ -778,7 +778,7 @@ router.post('/chat', async (req, res) => {
             try {
                 const systemPrompt = `You are QuizLab AI Study Assistant.
 Give a DIRECT, ACCURATE, and CONCISE answer to the student's question immediately on the very first line. Keep the response short, educational, and easy to understand. Do not write filler words.`;
-                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                     signal: controller.signal,
@@ -798,6 +798,9 @@ Give a DIRECT, ACCURATE, and CONCISE answer to the student's question immediatel
                     if (reply && reply.trim()) {
                         return res.json({ reply: reply.trim(), source: 'gemini' });
                     }
+                }
+                else {
+                    console.error(`Gemini chat API returned HTTP ${response.status}.`);
                 }
                 if ((0, runtime_js_1.isProductionRuntime)()) {
                     return res.status(502).json({

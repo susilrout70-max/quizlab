@@ -754,7 +754,7 @@ export async function generateAIQuestions(
 Format response strictly as valid JSON array with objects matching:
 [{ "question_text": "...", "options": ["opt1", "opt2", "opt3", "opt4"], "correct_option": 0, "explanation": "..." }]`;
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
@@ -793,6 +793,8 @@ Format response strictly as valid JSON array with objects matching:
             }
           }
         }
+      } else {
+        console.warn(`Gemini question API returned HTTP ${response.status}.`);
       }
     } catch (apiErr) {
       console.warn('Gemini API call failed, falling back to algorithmic generator:', apiErr);

@@ -176,21 +176,13 @@ async function startQuiz(req, res) {
         // 2. Query unused questions from database
         let selectedQuestions = [];
         try {
-            let dbRes;
-            if (usedQuestionIds.length > 0) {
-                dbRes = await (0, index_js_1.query)(`SELECT id, subject, difficulty, question_text, options, correct_option, explanation, source
-           FROM questions
-           WHERE subject = $1 AND difficulty = $2 AND id NOT IN (${usedQuestionIds.map((_, i) => `$${i + 3}`).join(',')})
-           ORDER BY random()
-           LIMIT $3`, [subject, normalizedDiff, targetCount, ...usedQuestionIds]);
-            }
-            else {
-                dbRes = await (0, index_js_1.query)(`SELECT id, subject, difficulty, question_text, options, correct_option, explanation, source
-           FROM questions
-           WHERE subject = $1 AND difficulty = $2
-           ORDER BY random()
-           LIMIT $3`, [subject, normalizedDiff, targetCount]);
-            }
+            const dbRes = await (0, index_js_1.query)(`SELECT id, subject, difficulty, question_text, options, correct_option, explanation, source
+         FROM questions
+         WHERE subject = $1 AND difficulty = $2
+           AND question_text NOT LIKE '[%] Which of the following statements represents the standard best practice in %'
+           AND id <> ALL($4::uuid[])
+         ORDER BY random()
+         LIMIT $3`, [subject, normalizedDiff, targetCount, usedQuestionIds]);
             selectedQuestions = dbRes.rows.map((r) => ({
                 ...r,
                 options: typeof r.options === 'string' ? JSON.parse(r.options) : r.options,
