@@ -79,8 +79,16 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Only start TCP listener when running locally (never in Vercel/Netlify serverless or test environments)
-if (!process.env.VERCEL && !process.env.VERCEL_ENV && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME && process.env.NODE_ENV !== 'test') {
+// Only start TCP listener when running directly in local dev (never in Vercel/Netlify serverless or test environments)
+const isDirectExecution = typeof require === 'undefined' || require.main === module;
+const isServerless = Boolean(
+  process.env.VERCEL ||
+  process.env.VERCEL_ENV ||
+  process.env.NETLIFY ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME
+);
+
+if (isDirectExecution && !isServerless && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
