@@ -11,11 +11,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Safe request logger for production debugging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`📡 [${req.method}] ${req.originalUrl || req.url} -> ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
 app.use(cors({
-  origin: '*',
+  origin: true,
   credentials: true,
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes - mounted on both /api/* and root paths to handle any Vercel rewrite configuration
 app.use('/api/auth', authRoutes);
@@ -74,11 +85,14 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Start TCP listener (except in test runner). Vercel safely wraps this in serverless mode or uses it in services mode.
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+// Only start TCP listener when running locally (NEVER when imported in Vercel serverless environment)
+if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
+  });
+  server.on('error', (err: any) => {
+    console.error('❌ Server listen error:', err?.message || err);
   });
 }
 
