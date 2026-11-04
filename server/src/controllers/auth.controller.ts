@@ -33,7 +33,7 @@ export async function signup(req: Request, res: Response): Promise<void> {
     res.status(400).json({
       error: {
         code: 'VALIDATION_ERROR',
-        message: parseResult.error.errors[0]?.message || 'Invalid input data',
+        message: parseResult.error.issues?.[0]?.message || 'Invalid input data',
       },
     });
     return;
@@ -150,7 +150,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     res.status(400).json({
       error: {
         code: 'VALIDATION_ERROR',
-        message: parseResult.error.errors[0]?.message || 'Invalid email or password format',
+        message: parseResult.error.issues?.[0]?.message || 'Invalid email or password format',
       },
     });
     return;

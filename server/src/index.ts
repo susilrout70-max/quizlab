@@ -17,7 +17,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Routes - mounted on both /api/* and root paths to handle any Vercel rewrite configuration
+// Normalize Netlify function path prefix if present
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/.netlify/functions/api')) {
+    req.url = req.url.replace('/.netlify/functions/api', '') || '/';
+  }
+  next();
+});
+
+// Routes - mounted on both /api/* and root paths to handle any Vercel/Netlify rewrite configuration
 app.use('/api/auth', authRoutes);
 app.use('/auth', authRoutes);
 
@@ -51,7 +59,7 @@ app.get('/api/health', healthHandler);
 app.get('/health', healthHandler);
 
 // 404 handler for unrecognized /api routes
-app.use('/api/*', (_req, res) => {
+app.use('/api', (_req, res) => {
   res.status(404).json({
     error: {
       code: 'NOT_FOUND',
@@ -71,8 +79,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Only start TCP listener when running locally (never in Vercel serverless or test environments)
-if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+// Only start TCP listener when running locally (never in Vercel/Netlify serverless or test environments)
+if (!process.env.VERCEL && !process.env.VERCEL_ENV && !process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
@@ -80,5 +88,7 @@ if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== '
 }
 
 export default app;
-module.exports = app;
-module.exports.default = app;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = app;
+  module.exports.default = app;
+}
