@@ -71,9 +71,8 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Only start TCP listener when executed directly as the main script (never when imported by Vercel or test runners)
-const isDirectExecution = typeof require !== 'undefined' && require.main === module;
-if (isDirectExecution && process.env.VERCEL !== '1' && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
+// Only start TCP listener when running locally (never in Vercel serverless or test environments)
+if (!process.env.VERCEL && !process.env.VERCEL_ENV && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚀 QuizLab Server running on port ${PORT}`);
     console.log(`📡 Healthcheck available at http://localhost:${PORT}/api/health`);
